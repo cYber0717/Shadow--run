@@ -636,5 +636,189 @@ int main(){
                 }
             }
         }
+    // Calculate frame position
+        Vector2u size = player.getTexture().getSize();
+
+        int frameWidth = size.x / columns;
+        int frameHeight = size.y / rows;
+
+        int x = (frame % columns) * frameWidth;
+        int y = (frame / columns) * frameHeight;
+
+        player.setTextureRect(IntRect({x, y},
+                                      {frameWidth, frameHeight}));
+
+
+        player.setOrigin({frameWidth / 2.f, frameHeight * 0.9f});
+        player.setPosition({playerX, climbing ? 560.f : playerGroundY});
+
+        float levelElapsed = levelClock.getElapsedTime().asSeconds();
+        if (!levelFinished)
+        {
+            if (playerX >= exitMarker.getPosition().x && levelElapsed <= levelDuration)
+            {
+                levelFinished = true;
+                playerEscaped = true;
+                levelFinishTime = levelElapsed;
+                cout << "He escaped!" << endl;
+            }
+            else if (levelElapsed >= levelDuration)
+            {
+                levelFinished = true;
+                playerCaptured = true;
+                levelFinishTime = levelElapsed;
+                cout << "He was captured." << endl;
+            }
+        }
+
+        float displayedElapsed = levelFinished ? levelFinishTime : levelElapsed;
+        float timeLeft = levelDuration - displayedElapsed;
+        if (timeLeft < 0.f)
+            timeLeft = 0.f;
+        timerBar.setSize({300.f * timeLeft / levelDuration, 18.f});
+
+        
+        FloatRect playerBounds = player.getGlobalBounds();
+        bool sliding = actionPlaying && &player.getTexture() == &slideTexture;
+        climbLift = climbing ? climbObstacleHeight * frame / 27.f : 0.f;
+
+        static const float slideH[24] = {82,82,76,64,50,38,28,26,30,28,32,34,
+                                         38,48,54,58,64,68,72,74,80,80,80,82};
+        static const float jumpRise[14] = {0,4,8,13,18,22,24,24,22,18,13,8,4,0};
+
+        FloatRect playerHitbox;
+        if (sliding)
+        {
+            if (frame < 0)
+                frame = 0;
+            else if (frame > 23)
+                frame = 23;
+
+            float w = 50.f;
+            float h = slideH[frame];
+            playerHitbox = FloatRect({playerX - w / 2, playerGroundY - h}, {w, h});
+        }
+        else
+        {
+            playerHitbox = FloatRect(
+                { playerBounds.position.x + playerBounds.size.x * 0.425f,
+                  playerBounds.position.y + playerBounds.size.y * 0.30f },
+                { playerBounds.size.x * 0.15f,
+                  playerBounds.size.y * 0.50f });
+
+            if (jumping)
+            {
+                if (frame < 0)
+                    frame = 0;
+                else if (frame > 13)
+                    frame = 13;
+
+                playerHitbox.position.y -= jumpRise[frame];
+            }
+            else if (climbing)
+            {
+                playerHitbox.position.y -= climbLift;
+            }
+        }
+
+        obstacleHitboxes.clear();
+        for (size_t i = 0; i < obstacles.size(); ++i)
+        {
+            FloatRect obstacleBounds = obstacles[i].getGlobalBounds();
+            float inset = obstacleIsSlide[i] ? 0.025f : 0.05f;
+            float hitboxScale = obstacleIsSlide[i] ? 0.95f : 0.90f;
+            float verticalInset = obstacleIsSlide[i] ? 0.025f : 0.10f;
+            FloatRect obstacleHitbox(
+                {
+                    obstacleBounds.position.x + obstacleBounds.size.x * inset,
+                    obstacleBounds.position.y + obstacleBounds.size.y * verticalInset
+                },
+                {
+                    obstacleBounds.size.x * hitboxScale,
+                    obstacleBounds.size.y * hitboxScale
+                }
+            );
+            obstacleHitboxes.push_back(obstacleHitbox);
+        }
+
+        bool obstacleCollision = false;
+        for (size_t i = 0; i < obstacleHitboxes.size(); ++i)
+        {
+            if (playerHitbox.findIntersection(obstacleHitboxes[i]))
+            {
+                obstacleCollision = true;
+                break;
+            }
+        }
+
+        bool newObstacleCollision =
+            obstacleCollision && !touchingJumpSlideObstacle;
+        touchingJumpSlideObstacle = obstacleCollision;
+
+        if (!levelFinished && newObstacleCollision)
+        {
+            if (droneWarningRemaining > 0.f)
+            {
+                playerCaptured = true;
+                levelFinished = true;
+                levelFinishTime = levelElapsed;
+                droneText.setString("You were captured!");
+                cout << "He was captured." << endl;
+            }
+            else
+            {
+                droneWarningRemaining = 4.f;
+                droneFallingBehindRemaining = 0.f;
+                droneText.setString("Drone is approaching");
+            }
+        }
+
+        // Draw everything
+        gameScene.clear();
+        gameScene.draw(background);
+        gameScene.draw(ground);
+        for (const RectangleShape& obstacle : obstacles)
+            gameScene.draw(obstacle);
+        gameScene.draw(climb1);
+        gameScene.draw(climb2);
+        gameScene.draw(exitMarker);
+        gameScene.draw(player);
+        gameScene.draw(timerBarBackground);
+        gameScene.draw(timerBar);
+        if (droneWarningRemaining > 0.f ||
+            droneFallingBehindRemaining > 0.f || playerCaptured)
+        {
+            gameScene.draw(droneTextBackground);
+            gameScene.draw(droneText);
+        }
+        gameScene.display();
+
+        window.clear(Color(20, 10, 30));
+        if (levelFinished)
+        {
+            Sprite gameFrame(gameScene.getTexture());
+            window.draw(gameFrame);
+            window.draw(outcomeOverlay);
+            window.draw(outcomePanelShadow);
+            window.draw(outcomePanel);
+            outcomeTitle.setString(
+                playerEscaped ? "YOU ESCAPED!" : "PLAYER WAS CAPTURED");
+            centerText(outcomeTitle, {640.f, 340.f});
+            window.draw(outcomeTitle);
+            window.draw(outcomeHint);
+        }
+        else
+        {
+            Sprite gameFrame(gameScene.getTexture());
+            window.draw(gameFrame);
+        }
+        window.display();
     }
+    gameMusic.stop();
+    return 0;
 }
+
+
+
+
+
