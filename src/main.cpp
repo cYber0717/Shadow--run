@@ -1,8 +1,8 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
-                      
+
 using namespace std;
-using namespace sf;      
+using namespace sf;
 
 int main()
 {
@@ -163,7 +163,7 @@ int main()
         int y = (frame / columns) * frameHeight;
 
         player.setTextureRect(IntRect({ x, y },
-            { frameWidth, frameHeight }));
+                                      { frameWidth, frameHeight }));
 
         // Position character
         player.setOrigin({ frameWidth / 2.f, frameHeight * 0.9f });
