@@ -1,3 +1,6 @@
+line one to 286 afan
+287 to 638 ahsan
+639 to 820 momin
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <iostream>
@@ -285,4 +288,356 @@ int main(){
         levelClock.restart();
     };
 
+    while (window.isOpen())
+    {
+        // Window events
+        while (const optional event = window.pollEvent())
+        {
+            if (event.value().is<Event::Closed>())
+                window.close();
+        }
+
+        if (!window.isOpen())
+            break;
+
+        bool mousePressed = Mouse::isButtonPressed(Mouse::Button::Left);
+        bool mouseClicked = mousePressed && !mouseWasPressed;
+        mouseWasPressed = mousePressed;
+
+        if (!gameStarted)
+        {
+            Vector2i mousePosition = Mouse::getPosition(window);
+            bool overStart =
+                mousePosition.x >= 480 && mousePosition.x <= 800 &&
+                mousePosition.y >= 342 && mousePosition.y <= 414;
+            bool overClose =
+                mousePosition.x >= 480 && mousePosition.x <= 800 &&
+                mousePosition.y >= 442 && mousePosition.y <= 514;
+
+            startButton.setFillColor(overStart
+                ? Color(105, 65, 135) : Color(76, 46, 99));
+            closeButton.setFillColor(overClose
+                ? Color(105, 65, 135) : Color(76, 46, 99));
+
+            if (mouseClicked && overStart)
+            {
+                resetGame();
+                gameStarted = true;
+            }
+            else if (mouseClicked && overClose)
+            {
+                window.close();
+            }
+
+            if (!window.isOpen())
+                break;
+
+            window.clear();
+            window.draw(menuBackground);
+            window.draw(menuTitle);
+            window.draw(menuSubtitle);
+            window.draw(startButton);
+            window.draw(startButtonText);
+            window.draw(closeButton);
+            window.draw(closeButtonText);
+            window.display();
+            continue;
+        }
+
+        if (levelFinished && Keyboard::isKeyPressed(Keyboard::Key::R))
+        {
+            resetGame();
+            continue;
+        }
+        if (levelFinished && Keyboard::isKeyPressed(Keyboard::Key::M))
+        {
+            resetGame();
+            gameStarted = false;
+            continue;
+        }
+
+        // Check keyboard
+        bool right = Keyboard::isKeyPressed(Keyboard::Key::Right);
+        bool space = Keyboard::isKeyPressed(Keyboard::Key::Space);
+        bool up = Keyboard::isKeyPressed(Keyboard::Key::Up);
+        bool down = Keyboard::isKeyPressed(Keyboard::Key::Down);
+
+        // CLIMB FIX: Check the wall approach window without allowing a wall already behind the player.
+        float playerFront = playerX + player.getGlobalBounds().size.x * 0.075f;
+        FloatRect climb1ApproachBounds = climb1.getGlobalBounds();
+        FloatRect climb2ApproachBounds = climb2.getGlobalBounds();
+        float climb1Distance = climb1ApproachBounds.position.x - playerFront;
+        float climb2Distance = climb2ApproachBounds.position.x - playerFront;
+        bool climb1InRange =
+            climb1Distance >= 0.f && climb1Distance <= climbApproachDistance;
+        bool climb2InRange =
+            climb2Distance >= 0.f && climb2Distance <= climbApproachDistance;
+        int nearbyClimbObstacle = 0;
+        if (climb1InRange)
+            nearbyClimbObstacle = 1;
+        if (climb2InRange &&
+            (!climb1InRange || climb2Distance < climb1Distance))
+            nearbyClimbObstacle = 2;
+
+        // Jumping
+        if (!levelFinished && !actionPlaying && space && !spaceWasPressed)
+        {
+            player.setTexture(jumpTexture);
+            columns = 4;
+            rows = 4;
+            totalFrames = 14;
+            frameTime = 0.067f;
+            loop = false;
+
+            actionPlaying = true;
+            normalAnimation = false;
+            frame = 0;
+            timer = 0.f;
+            playing = true;
+        }
+
+        else if (!levelFinished && !actionPlaying && standingWallIndex == 0 &&
+                 !fallingFromWall && playerGroundY == 560.f && up && !upWasPressed &&
+                 nearbyClimbObstacle != 0)
+        {
+            climbingObstacleIndex = nearbyClimbObstacle;
+            player.setTexture(climbTexture);
+            columns = 4;
+            rows = 7;
+            totalFrames = 28;
+            frameTime = 0.04f;
+            loop = false;
+
+            actionPlaying = true;
+            normalAnimation = false;
+            frame = 0;
+            timer = 0.f;
+            playing = true;
+        }
+
+        // Sliding
+        else if (!levelFinished && !actionPlaying && down && !downWasPressed)
+        {
+            player.setTexture(slideTexture);
+            columns = 4;
+            rows = 12;
+            totalFrames = 24;
+            frameTime = 0.067f;
+            loop = false;
+
+            actionPlaying = true;
+            normalAnimation = false;
+            frame = 0;
+            timer = 0.f;
+            playing = true;
+        }
+
+        // Remember previous key states
+        rightWasPressed = right;
+        spaceWasPressed = space;
+        upWasPressed = up;
+        downWasPressed = down;
+
+        // Return to running or idle
+        if (!levelFinished && !actionPlaying)
+        {
+            if (right && (!normalAnimation || !running))
+            {
+                player.setTexture(runTexture);
+                columns = 4;
+                rows = 6;
+                totalFrames = 22;
+                frameTime = 0.05f;
+                loop = true;
+
+                frame = 0;
+                timer = 0.f;
+                playing = true;
+
+                running = true;
+                normalAnimation = true;
+            }
+            else if (!right && (!normalAnimation || running))
+            {
+                player.setTexture(idleTexture);
+                columns = 4;
+                rows = 18;
+                totalFrames = 70;
+                frameTime = 0.067f;
+                loop = true;
+
+                frame = 0;
+                timer = 0.f;
+                playing = true;
+
+                running = false;
+                normalAnimation = true;
+            }
+        }
+
+        bool climbing = actionPlaying && &player.getTexture() == &climbTexture;
+        bool jumping = actionPlaying && &player.getTexture() == &jumpTexture;
+        float climbLift = climbing ? climbObstacleHeight * frame / 27.f : 0.f;
+
+        // Animation timing
+        float dt = clock.restart().asSeconds();
+        if (!levelFinished && droneWarningRemaining > 0.f)
+        {
+            droneWarningRemaining -= dt;
+            if (droneWarningRemaining <= 0.f)
+            {
+                droneWarningRemaining = 0.f;
+                droneFallingBehindRemaining = 1.f;
+                droneText.setString("Drone is falling behind");
+            }
+        }
+        else if (!levelFinished && droneFallingBehindRemaining > 0.f)
+        {
+            droneFallingBehindRemaining -= dt;
+            if (droneFallingBehindRemaining < 0.f)
+                droneFallingBehindRemaining = 0.f;
+        }
+
+       if (!levelFinished && right && !climbing && playerX < 300.f)
+        {
+            playerX += levelWorldSpeed * dt;
+            if (playerX > 300.f)
+                playerX = 300.f;
+        }
+        else if (!levelFinished &&
+                 (right ||
+                  (climbing &&
+                   ((climbingObstacleIndex == 1 && climb1Distance > 0.f) ||
+                    (climbingObstacleIndex == 2 && climb2Distance > 0.f)))))
+        {
+        float worldMove = levelWorldSpeed * dt;
+        float baseHitboxBottom =
+            player.getGlobalBounds().position.y +
+            player.getGlobalBounds().size.y * 0.8f;
+        float playerLeft = playerX - player.getGlobalBounds().size.x * 0.075f;
+        float climb1Top = climb1.getGlobalBounds().position.y;
+        float climb2Top = climb2.getGlobalBounds().position.y;
+        bool canPassClimb1 =
+            (climbing && climbingObstacleIndex == 1 &&
+             baseHitboxBottom - climbLift <= climb1Top) ||
+            standingWallIndex == 1;
+        bool canPassClimb2 =
+            (climbing && climbingObstacleIndex == 2 &&
+             baseHitboxBottom - climbLift <= climb2Top) ||
+            standingWallIndex == 2;
+
+        if (!canPassClimb1 && climb1Distance >= 0.f && climb1Distance < worldMove)
+            worldMove = climb1Distance > 0.f ? climb1Distance : 0.f;
+        if (!canPassClimb2 && climb2Distance >= 0.f && climb2Distance < worldMove)
+            worldMove = climb2Distance > 0.f ? climb2Distance : 0.f;
+
+         // Background movement
+         backgroundOffset += worldMove * (100.f / levelWorldSpeed);
+
+        background.setTextureRect(
+        IntRect({int(backgroundOffset), 0}, {1600, 900}));
+
+      
+        // move ground;
+        ground.setPosition({
+        ground.getPosition().x - worldMove, 560.f
+        });
+
+        // Move jump and slide obstacles.
+        for (size_t i = 0; i < obstacles.size(); ++i)
+        {
+            float obstacleY = obstacleIsSlide[i] ? 465.f : 530.f;
+            obstacles[i].setPosition({
+                obstacles[i].getPosition().x - worldMove, obstacleY
+            });
+        } 
+
+        climb1.setPosition({
+        climb1.getPosition().x - worldMove, 560.f - climbObstacleHeight
+        });
+
+        climb2.setPosition({
+        climb2.getPosition().x - worldMove, 560.f - climbObstacleHeight
+        });
+
+        exitMarker.setPosition({
+        exitMarker.getPosition().x - worldMove, 500.f
+        });
+
+        if (standingWallIndex == 1 &&
+            climb1.getPosition().x + climb1.getSize().x <= playerLeft)
+        {
+            standingWallIndex = 0;
+            fallingFromWall = true;
+        }
+        else if (standingWallIndex == 2 &&
+                 climb2.getPosition().x + climb2.getSize().x <= playerLeft)
+        {
+            standingWallIndex = 0;
+            fallingFromWall = true;
+        }
+    }
+
+        if (!levelFinished && fallingFromWall)
+        {
+            playerGroundY += 900.f * dt;
+            if (playerGroundY >= 560.f)
+            {
+                playerGroundY = 560.f;
+                fallingFromWall = false;
+            }
+        }
+
+        if (!levelFinished && playing)
+        {
+            timer += dt;
+
+            if (timer >= frameTime)
+            {
+                timer -= frameTime;
+                if (climbing)
+                {
+                    if (frame < totalFrames - 1)
+                    {
+                        frame++;
+                    }
+                    else
+                    {
+                        FloatRect selectedWall = climbingObstacleIndex == 1
+                            ? climb1.getGlobalBounds() : climb2.getGlobalBounds();
+                        float playerLeft =
+                            playerX - player.getGlobalBounds().size.x * 0.075f;
+                        bool wallCleared =
+                            selectedWall.position.x + selectedWall.size.x <= playerLeft;
+                        if (!right || wallCleared)
+                        {
+                            playing = false;
+                            actionPlaying = false;
+                            playerGroundY = 560.f - climbObstacleHeight;
+                            if (wallCleared)
+                                fallingFromWall = true;
+                            else
+                                standingWallIndex = climbingObstacleIndex;
+                            climbingObstacleIndex = 0;
+                        }
+                    }
+                }
+                else
+                {
+                    frame++;
+                    if (frame >= totalFrames)
+                    {
+                        if (loop)
+                            frame = 0;
+                        else
+                        {
+                            frame = totalFrames - 1;
+                            playing = false;
+                            actionPlaying = false;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
