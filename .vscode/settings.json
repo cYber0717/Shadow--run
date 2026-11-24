@@ -1,0 +1,18 @@
+{
+    "cmake.sourceDirectory": "C:/Users/X1-CB/Desktop/project/Shadow--run",
+    "cmake.cmakePath": "C:/msys64/ucrt64/bin/cmake.exe",
+    "cmake.generator": "Ninja",
+    "cmake.configureSettings": {
+        "CMAKE_CXX_COMPILER": "C:/msys64/ucrt64/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/msys64/ucrt64/bin/ninja.exe",
+        "CMAKE_PREFIX_PATH": "C:/msys64/ucrt64"
+    },
+    "cmake.configureEnvironment": {
+        "PATH": "C:/msys64/ucrt64/bin;${env:PATH}"
+    },
+    "cmake.buildEnvironment": {
+        "PATH": "C:/msys64/ucrt64/bin;${env:PATH}"
+    },
+    "C_Cpp.default.compilerPath": "C:/msys64/ucrt64/bin/g++.exe",
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+}
