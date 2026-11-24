@@ -1,3 +1,0 @@
-D:/Mysfml/build/CMakeFiles/ShadowRun.dir
-D:/Mysfml/build/CMakeFiles/edit_cache.dir
-D:/Mysfml/build/CMakeFiles/rebuild_cache.dir
