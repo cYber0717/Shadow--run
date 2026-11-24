@@ -22,10 +22,11 @@ shows a character using pictures from sprite sheets.
 Open the MSYS2 UCRT64 terminal and go to the project folder. For example:
 
 ```sh
-cd /d/Mysfml
+cd /c/path/to/project/Shadow--run
+pacman -S --needed mingw-w64-ucrt-x86_64-sfml mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
 ```
 
- build the project with CMake:
+Build the project with CMake:
 
 ```sh
 cmake -S . -B build
