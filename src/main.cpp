@@ -1,6 +1,3 @@
-line one to 286 afan
-287 to 638 ahsan
-639 to 820 momin
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <iostream>
